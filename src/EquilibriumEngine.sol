@@ -23,8 +23,12 @@ contract EquilibriumEngine {
 
     function getHealthFactor() external returns (bool) {}
 
-    function getUserCollateralValue(address _user) external view returns (uint256) {}
+    function getUserCollateralValue(address _user) external view returns (uint256) {
+        // loop through the collaterals tokens, get the amount they have deposited,
+        // and map it to the price, to get the USD value (Using Chainlink VERFs).
+    }
 
+    function getUsdValue(address _tokenAddress, uint256 _amount) external view returns (uint256) {}
     /// Internal and Private functions
 
     /*
@@ -36,5 +40,8 @@ contract EquilibriumEngine {
         // If do not, then revert
     }
 
-    function _revertIfHealthFactorIsBelow1() private view {}
+    function _revertIfHealthFactorIsBelow1() private view {
+        // Loop through the collateral tokens, get the amount they have deposited, and
+        // map it to the price, to get the USD value.
+    }
 }
