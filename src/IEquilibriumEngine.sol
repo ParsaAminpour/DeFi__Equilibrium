@@ -2,26 +2,35 @@
 pragma solidity 0.8.20;
 
 interface IEquilibriumEngine {
-    /*
-    /* @param _tokenCollateral is the token that user wants to add it as a collateral.
-    /* @param _amount is the amount to add in collateral
-    /* @returns bool is the token for collateral sended successfuly to the Engine contract.
-    */
-    function depositCollateralAndMintDSCE(address _tokenCollateral, uint256 _amount) external returns (bool);
+    function depositCollateralAndMintDsc(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountDscToMint
+    ) external;
 
-    function depositCollateral() external returns (bool);
+    function redeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn)
+        external;
 
-    function redeemCollateralForDSCE() external returns (bool);
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral) external;
 
-    function redeemCollateral() external returns (bool);
+    function burnDsc(uint256 amount) external;
 
-    function mintDSCE(uint256 _amountDsceToMint) external;
+    function liquidate(address collateral, address user, uint256 debtToCover) external;
 
-    function burnDSCE() external;
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256);
 
-    function liquidation() external returns (bool);
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd);
 
-    function getHealthFactor() external returns (bool);
+    function getUsdValue(
+        address token,
+        uint256 amount // in WEI
+    ) external view returns (uint256);
 
-    function getUserCollateralValue(address _user) external view returns (uint256);
+    function getCollateralBalanceOfUser(address user, address token) external view returns (uint256);
 }

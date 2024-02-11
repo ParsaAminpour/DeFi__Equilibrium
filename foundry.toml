@@ -3,7 +3,8 @@ src = "src"
 out = "out"
 solc_version = "0.8.20"
 libs = ["lib"]
-remappings = ['@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/', '@openzeppelin/contracts=lib/openzeppelin-contracts/contracts']
+remappings = ['@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/', 
+              '@openzeppelin/contracts=lib/openzeppelin-contracts/contracts']
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
