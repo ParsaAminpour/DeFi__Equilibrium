@@ -126,7 +126,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @param _tokenToDeposit is the token that user wants to add to his collateral treasury.
      * @param _amount is the amount to deposit from the user address.
     */
-    function _addCollateral(address _from, address _tokenToDeposit, uint256 _amount) public {
+    function _addCollateral(address _from, address _tokenToDeposit, uint256 _amount) internal {
         MapUserCollateralDeposited[_from][_tokenToDeposit] += _amount;
         emit CollateralAdded(_from, _tokenToDeposit, _amount);
 

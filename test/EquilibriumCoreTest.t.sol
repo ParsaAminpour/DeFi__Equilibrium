@@ -96,18 +96,18 @@ contract EquilibriumCoreTest is Test {
         //NOTE: bob Funded in setUp function
         vm.startPrank(bob);
         uint256 amount_to_deposit = 10 ether;
-        weth_mock.approve(address(core), amount_to_deposit);
+        weth_mock.approve(address(core_instance), amount_to_deposit);
 
         // check event emitted
         vm.expectEmit(true, true, true, true);
         emit CollateralAdded(bob, address(weth_mock), amount_to_deposit);
 
-        core._addCollateral(bob, address(weth_mock), amount_to_deposit);
+        core_instance.addCollateral(bob, address(weth_mock), amount_to_deposit);
 
-        uint256 deposited_amount_in_contract = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
+        uint256 deposited_amount_in_contract = core_instance.getUserCollateralDepositedAmount(bob, address(weth_mock));
         assertEq(deposited_amount_in_contract, amount_to_deposit);
 
-        uint256 real_equilibiurm_core_collateral_balance = weth_mock.balanceOf(address(core));
+        uint256 real_equilibiurm_core_collateral_balance = weth_mock.balanceOf(address(core_instance));
         assertEq(real_equilibiurm_core_collateral_balance, amount_to_deposit);
         vm.stopPrank();
     }
