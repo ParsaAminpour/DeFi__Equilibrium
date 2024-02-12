@@ -9,7 +9,7 @@ contract Equilibrium is ERC20, Ownable {
     using SafeERC20 for ERC20;
 
     error Equilibrium__ZeroAddressDetected();
-    
+
     // msg.sender is the EquilibriumCore contract address
     constructor() ERC20("Equilibrium", "EQU") Ownable(msg.sender) {}
 

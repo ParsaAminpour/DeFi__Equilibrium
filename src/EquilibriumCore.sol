@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-
 import {console} from "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
@@ -76,7 +75,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @param wbtc_feed is the address of the Chainlink price feed for WBTC.
     */
     constructor(address weth, address wbtc, address weth_feed, address wbtc_feed) Ownable(msg.sender) {
-        if(weth != wbtc && weth_feed != weth_feed) {
+        if (weth != wbtc && weth_feed != weth_feed) {
             revert EquilibriumCore__AddressesInConstructorShouldNotBeSame();
         }
 
@@ -89,6 +88,9 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         i_equ_token = new Equilibrium();
     }
 
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /         External Functions          /
+    *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
     /*
      * @notice follows CEI.
      * @param _tokenToDesposit is the token that user wants to add to his collateral treasury.
@@ -115,12 +117,16 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         // check Health Factor.
     }
 
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /     Internal & Private Function     /
+    *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+
     /*
      * @param _from is the user address.
      * @param _tokenToDeposit is the token that user wants to add to his collateral treasury.
      * @param _amount is the amount to deposit from the user address.
     */
-    function _addCollateral(address _from, address _tokenToDeposit, uint256 _amount) internal {
+    function _addCollateral(address _from, address _tokenToDeposit, uint256 _amount) public {
         MapUserCollateralDeposited[_from][_tokenToDeposit] += _amount;
         emit CollateralAdded(_from, _tokenToDeposit, _amount);
 
@@ -155,32 +161,47 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         return (uint256(price) * EXTRA_PRECISION_FOR_PRICE_FEED) * _amountOfCollateral;
     }
 
-
-
-
-    function getSupportedTokenAddress() external view returns(address weth, address wbtc) {
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /           get functions             /
+    *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+    function getSupportedTokenAddress() external view returns (address weth, address wbtc) {
         return (tokenSupported[0], tokenSupported[1]);
     }
 
-    function getCollateralTokenSupportedPriceFeedAddresses() external view returns(address weth_feed, address wbtc_feed) {
+    function getCollateralTokenSupportedPriceFeedAddresses()
+        external
+        view
+        returns (address weth_feed, address wbtc_feed)
+    {
         return (MapSupportedTokenPriceFeed[tokenSupported[0]], MapSupportedTokenPriceFeed[tokenSupported[1]]);
     }
 
-    function getEquilibriumTokenAddress() external view returns(address) {
+    function getUserCollateralDepositedAmount(address _user, address _collateral_address)
+        external
+        view
+        returns (uint256)
+    {
+        return MapUserCollateralDeposited[_user][_collateral_address];
+    }
+
+    function getUserEquilibriumTokenMinted(address _user) external view returns (uint256) {
+        return MapEquilibriumMinted[_user];
+    }
+
+    function getEquilibriumTokenAddress() external view returns (address) {
         return address(i_equ_token);
     }
 
-
     // Constant state variable values
-    function get_LIQUIDATION_RATIO() external pure returns(uint256) {
+    function get_LIQUIDATION_RATIO() external pure returns (uint256) {
         return LIQUIDATION_RATIO;
     }
 
-    function get_PRECISION() external pure returns(uint256) {
+    function get_PRECISION() external pure returns (uint256) {
         return PRECISION;
     }
 
-    function get_EXTRA_PRECISION_FOR_PRICE_FEED() external pure returns(uint256) {
+    function get_EXTRA_PRECISION_FOR_PRICE_FEED() external pure returns (uint256) {
         return EXTRA_PRECISION_FOR_PRICE_FEED;
     }
 }

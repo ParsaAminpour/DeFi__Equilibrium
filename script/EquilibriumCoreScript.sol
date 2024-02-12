@@ -13,8 +13,8 @@ import {InstanceEquilibriumCore} from "../src/InstanceEquilibriumCore.sol";
 contract EquilibriumCoreScript is Script {
     function setUp() public {}
 
-    function run() external returns(EquilibriumCore, Equilibrium) {
-        uint private_key = vm.envUint("PRIVATE_KEY");
+    function run() external returns (EquilibriumCore, Equilibrium) {
+        uint256 private_key = vm.envUint("PRIVATE_KEY");
         address weth_address = vm.envAddress("SEPOLIA_WETH_ADDRESS");
         address wbtc_address = vm.envAddress("SEPOLIA_WBTC_ADDRESS");
         address sepolia_weth_price_feed = vm.envAddress("SEPOLIA_WETH_PRICE_FEED");
@@ -29,10 +29,8 @@ contract EquilibriumCoreScript is Script {
 
         vm.startBroadcast(private_key);
 
-        EquilibriumCore core = new EquilibriumCore(
-            weth_address, wbtc_address,
-            sepolia_weth_price_feed, sepolia_wbtc_price_feed
-        );
+        EquilibriumCore core =
+            new EquilibriumCore(weth_address, wbtc_address, sepolia_weth_price_feed, sepolia_wbtc_price_feed);
 
         Equilibrium token = Equilibrium(core.getEquilibriumTokenAddress());
 
