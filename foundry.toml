@@ -6,6 +6,10 @@ libs = ["lib"]
 remappings = ['@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/', 
               '@openzeppelin/contracts=lib/openzeppelin-contracts/contracts']
 
+gas_reports = ["*"]
+# gas_reports_ignore = ["InstanceEquilibriumCore"]
+
+
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
 sepolia = {key = "${ETHERSCAN_API_KEY}"}

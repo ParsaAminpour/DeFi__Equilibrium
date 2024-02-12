@@ -33,7 +33,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
     uint256 private constant LIQUIDATION_RATIO = 15e17; // 1.liquidation ratio is 1.5
     uint256 private constant PRECISION = 1e18;
-    uint256 private constant EXTRA_PRECISION_FOR_PRICED_FEED = 1e10; // because the price feed is on (x * 1e8)
+    uint256 private constant EXTRA_PRECISION_FOR_PRICE_FEED = 1e10; // because the price feed is on (x * 1e8)
 
     mapping(address user => uint256 amount) private MapEquilibriumMinted;
 
@@ -152,10 +152,8 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     function _getUsdValue(address _collateralAddress, uint256 _amountOfCollateral) internal view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(MapSupportedTokenPriceFeed[_collateralAddress]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-        return (uint256(price) * EXTRA_PRECISION_FOR_PRICED_FEED) * _amountOfCollateral;
+        return (uint256(price) * EXTRA_PRECISION_FOR_PRICE_FEED) * _amountOfCollateral;
     }
-
-
 
 
 
@@ -170,5 +168,19 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
     function getEquilibriumTokenAddress() external view returns(address) {
         return address(i_equ_token);
+    }
+
+
+    // Constant state variable values
+    function get_LIQUIDATION_RATIO() external pure returns(uint256) {
+        return LIQUIDATION_RATIO;
+    }
+
+    function get_PRECISION() external pure returns(uint256) {
+        return PRECISION;
+    }
+
+    function get_EXTRA_PRECISION_FOR_PRICE_FEED() external pure returns(uint256) {
+        return EXTRA_PRECISION_FOR_PRICE_FEED;
     }
 }

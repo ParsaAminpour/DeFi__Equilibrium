@@ -1,0 +1,5 @@
+EquilibriumCoreTest:testCalculateEquilibriumAmountToMint() (gas: 187)
+EquilibriumCoreTest:testCollateralAddresses() (gas: 10162)
+EquilibriumCoreTest:testEquilibriumCoreContractOwnership() (gas: 7767)
+EquilibriumCoreTest:testEquilibriumTokenContractOwnership() (gas: 10974)
+EquilibriumCoreTest:testPriceFeedInserted() (gas: 14492)

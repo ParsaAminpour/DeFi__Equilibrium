@@ -1,0 +1,4 @@
+EquilibriumEngineTest:testCollateralAddresses() (gas: 10140)
+EquilibriumEngineTest:testEquilibriumCoreContractOwnership() (gas: 7745)
+EquilibriumEngineTest:testEquilibriumTokenContractOwnership() (gas: 10952)
+EquilibriumEngineTest:testPriceFeedInserted() (gas: 14403)
