@@ -22,17 +22,23 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /               Errors                /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+    error Equilibrium__HealthFactorViolated(address violater, address collateral_asset, uint256 dangerous_hf);
     error EquilibriumCore__transactionReverted(address from);
     error EquilibriumCore__amountShouldNotBeZero();
     error EquilibriumCore__UnsupportedToken();
     error EquilibriumCore__AddressesInConstructorShouldNotBeSame();
+    error EquilibriumCore__ineligibleUser();
+    error EquilibriumCore_insufficientAmountToWithdrawCollateral(uint256 amountFailed);
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /           State Variables           /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
-    uint256 private constant LIQUIDATION_RATIO = 15e17; // 1.liquidation ratio is 1.5
-    uint256 private constant PRECISION = 1e18;
+    uint256 private constant LIQUIDATION_RATIO = 25e17; // 1.liquidation ratio is 2 and we should be at least 2.5 time over-collaterlized.
+    uint256 private constant PRECISION = 1e18; // formal precision in smart contracts.
     uint256 private constant EXTRA_PRECISION_FOR_PRICE_FEED = 1e10; // because the price feed is on (x * 1e8)
+    uint256 private constant HEALTH_FACTOR_THRESHOLD = 1e18; // The key of the contract, the Hf shouldn't go under this amount;
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; // For calculating Health Factor.
+    uint256 private constant LIQUIDATION_PRECISION = 100; // For calculating Health Factor.
 
     mapping(address user => uint256 amount) private MapEquilibriumMinted;
 
@@ -50,6 +56,8 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
     event CollateralAdded(address indexed owner, address indexed tokenAdded, uint256 indexed amount);
     event EquilibriumMinted(address indexed owner, uint256 indexed amount);
+    event CollateralWithdrew(address indexed owner, address indexed collateral, uint256 indexed amount);
+
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /           Modifiers                 /
@@ -64,6 +72,28 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     modifier NotZeroAmount(uint256 _amount) {
         if (_amount == 0) {
             revert EquilibriumCore__amountShouldNotBeZero();
+        }
+        _;
+    }
+
+    modifier isEligibleUser(address _user, address _collateral) {
+        if (MapUserCollateralDeposited[_user][_collateral] == 0) {
+            revert EquilibriumCore__ineligibleUser();
+        }
+        _;
+    }
+
+    modifier isAmountProper(address _user, address _collateral, uint256 _amount) {
+        if (MapUserCollateralDeposited[_user][_collateral] < _amount) {
+            revert EquilibriumCore_insufficientAmountToWithdrawCollateral(_amount);
+        }
+        _;
+    }
+
+    modifier isHealthFactorViolated(address _user, address _collateral) {
+        uint256 hf = get_health_factor(_user, _collateral);
+        if (hf < HEALTH_FACTOR_THRESHOLD) {
+            revert Equilibrium__HealthFactorViolated(_user, _collateral, hf);
         }
         _;
     }
@@ -98,11 +128,11 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     */
     function depositCollateralAndMintEquilibrium(address _tokenToDeposit, uint256 _amount)
         external
-        nonReentrant
+        nonReentrant // just for being conservatism
         onlySupportedToken(_tokenToDeposit)
         NotZeroAmount(_amount)
     {
-        // Coverting collateral to USD amount
+        // Coverting collateral to USD amount to calculate amountToMint variable.
         uint256 collateralAmountInUsd = _getUsdValue(_tokenToDeposit, _amount);
 
         // calculate how much QUI should be minted.
@@ -113,8 +143,61 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
         // add collateral
         _addCollateral(msg.sender, _tokenToDeposit, _amount);
+    }
 
-        // check Health Factor.
+
+    function withdrawCollateral(address _tokenToWithdraw, uint256 _amount)
+        external
+        nonReentrant
+        isEligibleUser(msg.sender, _tokenToWithdraw) // verifying collateral address accuracy simulteneuosly.
+        isAmountProper(msg.sender, _tokenToWithdraw, _amount)
+        isHealthFactorViolated(msg.sender, _tokenToWithdraw) {
+        MapUserCollateralDeposited[msg.sender][_tokenToWithdraw] -= _amount;
+        emit CollateralWithdrew(msg.sender, _tokenToWithdraw, _amount);
+
+        // checking health factor again after changing the state variable.
+        uint256 hf = get_health_factor(msg.sender, _tokenToWithdraw);
+        if (hf < HEALTH_FACTOR_THRESHOLD) {
+            revert Equilibrium__HealthFactorViolated(msg.sender, _tokenToWithdraw, hf);
+        }
+
+        // actual interaction before health factor examined.
+        bool success = IERC20(_tokenToWithdraw).transfer(msg.sender, _amount);
+        if (!success) {
+            revert EquilibriumCore__transactionReverted(msg.sender);
+        }
+    }
+
+    
+    function _getUserBalances(address _user, address _collateral) internal view returns (uint256, uint256) {
+        uint256 equilibrium_token_balance = MapEquilibriumMinted[_user];
+        uint256 total_collateral_balance = MapUserCollateralDeposited[_user][_collateral];
+        uint256 total_collateral_balance_in_usd = _getUsdValue(_collateral, total_collateral_balance / 1e18);
+
+        return (equilibrium_token_balance, total_collateral_balance_in_usd);
+    }
+
+    /* Calculation has been verified
+     * @notice the amount of Equilibiurm minted is 250% times of collateral amount in did and whereas the LIQUIDATION_RATIO
+        is 2 which means the amount of collateral should 2 times more than the Equilibrium token amount for a specific user,
+        So, we declared the initial ration as 2.5 to be over-collateralized.
+    */
+    function _calculate_health_factor(uint256 _total_equilibrium_minted, uint256 _total_collateral_deposited_in_usd)
+        internal
+        pure
+        returns (uint256)
+    {
+        // The actual Hf calculation: _total_equilibrium_minted: A & total_collateral_deposited_in_usd: B
+        // Hf (((A * 0.5) * 1e18) / B) ~ ((A * 1e18) / 2*B) Ooh such a math genius am I 😂
+        uint256 threshold_for_collateral =
+            (_total_collateral_deposited_in_usd * HEALTH_FACTOR_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (threshold_for_collateral * PRECISION) / _total_equilibrium_minted;
+    }
+
+    function get_health_factor(address _user, address _collateral) public view returns (uint256) {
+        (uint256 total_minted, uint256 total_collateral_balance_in_usd) = _getUserBalances(_user, _collateral);
+        uint256 hf = _calculate_health_factor(total_minted, total_collateral_balance_in_usd);
+        return hf;
     }
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
@@ -151,7 +234,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @dev the LIQUIDATION_RATIO will calculate based on the (TOTOAL_COLLATERAL_AMOUNT / TOTAL_EQUILIBRIUM_MINTED)
     */
     function _calculateEquilibriumAmountToMint(uint256 _collateralAmountAddedInUsd) internal pure returns (uint256) {
-        return (_collateralAmountAddedInUsd * PRECISION) / LIQUIDATION_RATIO;
+        return _collateralAmountAddedInUsd / LIQUIDATION_RATIO;
     }
 
     // @audit should we analyze and examine the Chainlink Aggregator safety and data stale status.

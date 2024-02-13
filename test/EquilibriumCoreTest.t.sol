@@ -33,6 +33,8 @@ contract EquilibriumCoreTest is Test {
     int256 public constant INIT_ETH_USD_PRICE = 2000e8;
     int256 public constant INIT_BTC_USD_PRICE = 5000e8;
 
+    uint256 public constant INIT_TOKEN_BALANCE = 100e18;
+
     EquilibriumCore public core;
     InstanceEquilibriumCore public core_instance;
 
@@ -52,9 +54,6 @@ contract EquilibriumCoreTest is Test {
         weth_feed = new MockV3Aggregator(DECIMALS, INIT_ETH_USD_PRICE);
         wbtc_feed = new MockV3Aggregator(DECIMALS, INIT_BTC_USD_PRICE);
 
-        console.log("weth feed: ", address(weth_feed));
-        console.log("wbtc feed: ", address(wbtc_feed));
-
         core = new EquilibriumCore(address(weth_mock), address(wbtc_mock), address(weth_feed), address(wbtc_feed));
         core_instance =
             new InstanceEquilibriumCore(address(weth_mock), address(wbtc_mock), address(weth_feed), address(wbtc_feed));
@@ -64,7 +63,9 @@ contract EquilibriumCoreTest is Test {
         jack = makeAddr("jack");
 
         // First off we should add balance amount for Bob
-        weth_mock.transfer(bob, 10e18);
+        weth_mock.transfer(bob, INIT_TOKEN_BALANCE);
+        weth_mock.transfer(alice, INIT_TOKEN_BALANCE);
+        weth_mock.transfer(jack, INIT_TOKEN_BALANCE);
     }
 
     function testCollateralAddresses() public {
@@ -129,6 +130,7 @@ contract EquilibriumCoreTest is Test {
         uint256 amount_balance_in_equilibrium_token_contract = equilibrium_token.balanceOf(bob);
         assertEq(amount_balance_in_equilibrium_token_contract, amount_to_deposit);
 
+        assertEq(amount_stored_in_contract_state_variable, amount_balance_in_equilibrium_token_contract);
         vm.stopPrank();
     }
 
@@ -155,5 +157,86 @@ contract EquilibriumCoreTest is Test {
     function testCalculateEquilibriumAmountToMint() public {
         // internal calculation
         // For example we have 100$ of WETH as collateral
+    }
+
+    function testFailDepositCollateralIfTokenDoesntSupported() public {
+        address unsupported_address = makeAddr("unsupported_address");
+        // vm.expectRevert(core.EquilibriumCore__UnsupportedToken.selector);
+        core.depositCollateralAndMintEquilibrium(unsupported_address, 100e18);
+    }
+
+    function testFaildepositCollateralIfZeroamountInserted() public {
+        uint256 zero_amount = 0;
+        core.depositCollateralAndMintEquilibrium(address(weth_mock), zero_amount);
+    }
+
+    function testDepositCollateralAndMinEquilibrium() public {
+        vm.startPrank(bob);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core), amount_to_deposit);
+
+        // check event emitted
+        vm.expectEmit(true, true, true, true);
+        emit CollateralAdded(bob, address(weth_mock), amount_to_deposit);
+
+        core.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+
+        uint256 deposited_amount_in_contract = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
+        assertEq(deposited_amount_in_contract, amount_to_deposit);
+
+        uint256 real_equilibiurm_core_collateral_balance = weth_mock.balanceOf(address(core));
+        assertEq(real_equilibiurm_core_collateral_balance, amount_to_deposit);
+
+        assertEq(uint256(1), uint256(1));
+        vm.stopPrank();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////
+    // NOTE: should we write a fuzz test for this Health Factor functionality.
+    function testHealthFactor() public {
+        vm.startPrank(alice);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core_instance), amount_to_deposit);
+
+        core_instance.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+
+        (uint256 total_minted, uint256 total_collateral_balance_in_usd) =
+            core_instance.getUserBalance(alice, address(weth_mock));
+        console.log("Total minted: ", total_minted / 1e18); // 8000
+        console.log("Total collateral: ", total_collateral_balance_in_usd / 1e18); // 20000
+
+        uint256 hf = core_instance.calculate_health_factor(total_minted, total_collateral_balance_in_usd);
+        console.log("Health factor is: ", hf);
+
+        assertLt(1e18, hf);
+        vm.stopPrank();
+    }
+
+    function testFailwithdrawCollateralIneligibleUser() public {
+        address inenigible_user = makeAddr("Inenigible_user");
+        vm.startPrank(inenigible_user);
+        core.withdrawCollateral(address(weth_mock), 10e18);
+        vm.stopPrank();
+    }
+    
+    function testFailwithdrawCollateralNotProperAmount() public {
+        vm.startPrank(bob);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core), amount_to_deposit);
+
+        core.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+
+        core.withdrawCollateral(address(weth_mock), 11e18);
+        vm.stopPrank();
+    }
+
+    function testFailwithdrawCollateralWhenHealthFactorViolated() public {
+        
     }
 }

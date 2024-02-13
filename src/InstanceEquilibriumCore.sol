@@ -49,4 +49,17 @@ contract InstanceEquilibriumCore is EquilibriumCore {
     {
         usd_value = super._getUsdValue(_collateralAddress, _amountOfCollateral);
     }
+
+    function getUserBalance(address _user, address _collateral) external view returns (uint256, uint256) {
+        (uint256 equ_amount, uint256 collateral_amount) = super._getUserBalances(_user, _collateral);
+        return (equ_amount, collateral_amount);
+    }
+
+    function calculate_health_factor(uint256 _total_equilibrium_minted, uint256 _total_collateral_deposited_in_usd)
+        external
+        pure
+        returns (uint256)
+    {
+        return super._calculate_health_factor(_total_equilibrium_minted, _total_collateral_deposited_in_usd);
+    }
 }
