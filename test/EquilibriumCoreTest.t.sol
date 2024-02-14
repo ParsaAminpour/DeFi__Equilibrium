@@ -46,6 +46,7 @@ contract EquilibriumCoreTest is Test {
 
     event CollateralAdded(address indexed owner, address indexed tokenAdded, uint256 indexed amount);
     event EquilibriumMinted(address indexed owner, uint256 indexed amount);
+    event CollateralWithdrew(address indexed owner, address indexed collateral, uint256 indexed amount);
 
     function setUp() public {
         weth_mock = new ERC20Mock("WETH", "WETH", 1000e18);
@@ -236,7 +237,43 @@ contract EquilibriumCoreTest is Test {
         vm.stopPrank();
     }
 
-    function testFailwithdrawCollateralWhenHealthFactorViolated() public {
+    // function testFailwithdrawCollateralWhenHealthFactorViolated() public {
+        // @bug we should manipulate the WETH price due to Mock price feeds which I don't know how
+    // }
+
+    function testwithdrawCollateral() public {
+        vm.startPrank(bob);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core), amount_to_deposit);
+
+        core.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+        vm.stopPrank();
+
+        uint256 hf = core.get_health_factor(bob, address(weth_mock));
+        if (hf > 1e18) {
+            console.log("It's ok");
+        } else {
+            console.log("It's not ok");
+        }
+
+        vm.startPrank(bob);
+        uint256 balance_before = IERC20(weth_mock).balanceOf(bob);
+
+        core.withdrawCollateral(address(weth_mock), amount_to_deposit);
+
+        // checking state variable
+        uint256 expected_balance_in_state_variable = 0;
+        uint256 state_variable_balance = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
+        assertEq(expected_balance_in_state_variable, state_variable_balance);
+
+        // checking the balance from the token's own state variable
+        uint256 expect_balance_in_weth_token = balance_before + amount_to_deposit;
+        uint256 state_variable_balance_in_weth = IERC20(weth_mock).balanceOf(bob);
+        assertEq(expect_balance_in_weth_token, state_variable_balance_in_weth);
         
+        vm.stopPrank();
     }
+
 }

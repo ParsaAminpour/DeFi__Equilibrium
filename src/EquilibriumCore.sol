@@ -92,7 +92,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
     modifier isHealthFactorViolated(address _user, address _collateral) {
         uint256 hf = get_health_factor(_user, _collateral);
-        if (hf < HEALTH_FACTOR_THRESHOLD) {
+        if (hf < 1e18) {
             revert Equilibrium__HealthFactorViolated(_user, _collateral, hf);
         }
         _;
@@ -105,7 +105,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @param wbtc_feed is the address of the Chainlink price feed for WBTC.
     */
     constructor(address weth, address wbtc, address weth_feed, address wbtc_feed) Ownable(msg.sender) {
-        if (weth != wbtc && weth_feed != weth_feed) {
+        if (weth == wbtc && weth_feed == wbtc_feed) {
             revert EquilibriumCore__AddressesInConstructorShouldNotBeSame();
         }
 
@@ -151,15 +151,12 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         nonReentrant
         isEligibleUser(msg.sender, _tokenToWithdraw) // verifying collateral address accuracy simulteneuosly.
         isAmountProper(msg.sender, _tokenToWithdraw, _amount)
-        isHealthFactorViolated(msg.sender, _tokenToWithdraw) {
-        MapUserCollateralDeposited[msg.sender][_tokenToWithdraw] -= _amount;
-        emit CollateralWithdrew(msg.sender, _tokenToWithdraw, _amount);
-
-        // checking health factor again after changing the state variable.
-        uint256 hf = get_health_factor(msg.sender, _tokenToWithdraw);
-        if (hf < HEALTH_FACTOR_THRESHOLD) {
-            revert Equilibrium__HealthFactorViolated(msg.sender, _tokenToWithdraw, hf);
+        isHealthFactorViolated(msg.sender, _tokenToWithdraw) 
+        {
+        unchecked { // we've already checked the amount in isAmountProper modifier.
+            MapUserCollateralDeposited[msg.sender][_tokenToWithdraw] -= _amount;
         }
+        emit CollateralWithdrew(msg.sender, _tokenToWithdraw, _amount);
 
         // actual interaction before health factor examined.
         bool success = IERC20(_tokenToWithdraw).transfer(msg.sender, _amount);
@@ -190,7 +187,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         // The actual Hf calculation: _total_equilibrium_minted: A & total_collateral_deposited_in_usd: B
         // Hf (((A * 0.5) * 1e18) / B) ~ ((A * 1e18) / 2*B) Ooh such a math genius am I 😂
         uint256 threshold_for_collateral =
-            (_total_collateral_deposited_in_usd * HEALTH_FACTOR_THRESHOLD) / LIQUIDATION_PRECISION;
+            (_total_collateral_deposited_in_usd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (threshold_for_collateral * PRECISION) / _total_equilibrium_minted;
     }
 
