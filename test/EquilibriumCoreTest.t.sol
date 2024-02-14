@@ -223,7 +223,7 @@ contract EquilibriumCoreTest is Test {
         core.withdrawCollateral(address(weth_mock), 10e18);
         vm.stopPrank();
     }
-    
+
     function testFailwithdrawCollateralNotProperAmount() public {
         vm.startPrank(bob);
         address token_to_deposit = address(weth_mock);
@@ -238,7 +238,7 @@ contract EquilibriumCoreTest is Test {
     }
 
     // function testFailwithdrawCollateralWhenHealthFactorViolated() public {
-        // @bug we should manipulate the WETH price due to Mock price feeds which I don't know how
+    // @bug we should manipulate the WETH price due to Mock price feeds which I don't know how
     // }
 
     function testwithdrawCollateral() public {
@@ -272,8 +272,23 @@ contract EquilibriumCoreTest is Test {
         uint256 expect_balance_in_weth_token = balance_before + amount_to_deposit;
         uint256 state_variable_balance_in_weth = IERC20(weth_mock).balanceOf(bob);
         assertEq(expect_balance_in_weth_token, state_variable_balance_in_weth);
-        
+
         vm.stopPrank();
     }
 
+    //////burn//////
+    function testGetCollateralAmountByUsdAmount() public {
+        vm.startPrank(bob);
+        // for example the WETH price is 2000$ and we want to liquidate 100$, so we should back 0.05 in did
+        uint256 amount_to_liquidate = 100e18;
+
+        uint256 result = core_instance.getCollateralAmountByUsdAmount(address(weth_mock), amount_to_liquidate);
+
+        uint256 expected_calculation = 5e16;
+
+        assertEq(result, expected_calculation);
+        vm.stopPrank();
+    }
+
+    // test unit for EquilibriumCore::liquidation (all pf aspects).
 }
