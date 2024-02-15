@@ -70,4 +70,12 @@ contract InstanceEquilibriumCore is EquilibriumCore {
     {
         result = super._getCollateralAmountByUsdAmount(_collateral, _usd_amount_to_liquidate);
     }
+
+    function withdrawCollateral(address _from, address _to, address _collateral, uint256 _amount) external {
+        super._withdrawCollateral(_from, _to, _collateral, _amount);
+    }
+
+    function getCoreAddress() external view returns(address) {
+        return super.get_contract_address();
+    }
 }

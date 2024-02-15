@@ -304,6 +304,7 @@ contract EquilibriumCoreTest is Test {
         // this amount won't break the health factor
         // If you make it for example 10 ether, the last line _revertIfHealthFactorViolated will be triggered.
         uint256 amount_to_withdraw = 1e18; 
+        weth_mock.approve(address(core), amount_to_withdraw);
         
         core.withdrawCollateral(token_to_deposit, amount_to_withdraw);
         // uint256 hf2 = core.get_health_factor(bob, address(weth_mock));
@@ -394,7 +395,32 @@ contract EquilibriumCoreTest is Test {
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /       Liquidation Test Units        /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+    // tests units that should fail.
+    function testFailLiquidationIneligibleUser() public {
+        address inenigible_user = makeAddr("Inenigible_user");
+        vm.startPrank(bob);
+        core.liquidation(inenigible_user, address(weth_mock), 1e18);
+        vm.stopPrank();
+    }
 
+    function testFailLiquidationNotZeroAmount() public {
+        vm.startPrank(bob);
+        core.liquidation(alice, address(weth_mock), 0); 
+        vm.stopPrank();
+    }
+
+    function testRevertLiquidationWhenHealthFactorIsNotViolated() public DepositCollateralInWETH() {
+        // Now bob has 10 WETH collateral inside the EquilibriumCore contract.
+        vm.startPrank(bob);
+        vm.expectRevert(EquilibriumCore__healthFactorIsNotViolated.selector);
+        core.liquidation(bob, address(weth_mock), 1e18);
+        vm.stopPrank();
+    }
+
+    function testLiquidationWithProperAmount() public DepositCollateralInWETH() {
+        // Now bob has 10 WETH collateral inside the EquilibriumCore contract.
+        // Let's make the Health Factor Violate.
+    }
 
 
 

@@ -165,7 +165,8 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
 
 
-
+    // Just when collateral owner wants to withdraw his own collateral.
+    // NOTE: this function is not proper for solving health factor chaos.
     function withdrawCollateral(address _tokenToWithdraw, uint256 _amount)
         external
         nonReentrant
@@ -173,7 +174,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         isAmountProper(msg.sender, _tokenToWithdraw, _amount)
         isHealthFactorViolated(msg.sender, _tokenToWithdraw)
     {
-        _withdrawCollateral(msg.sender, _tokenToWithdraw, _amount);
+        _withdrawCollateral(address(this), msg.sender, _tokenToWithdraw, _amount);
 
         _revertIfHealthFactorViolated(msg.sender, _tokenToWithdraw);
     }
@@ -191,62 +192,63 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         uint256 equilibrium_equivalent_to_collateral_amount = _calculateEquilibriumAmountToMint(collateralAmountInUsd);
 
         _burnEquilibrium(msg.sender, msg.sender, equilibrium_equivalent_to_collateral_amount);
-        _withdrawCollateral(msg.sender, _tokenToWithdraw, _amount);
+        _withdrawCollateral(address(this) ,msg.sender, _tokenToWithdraw, _amount);
         _revertIfHealthFactorViolated(msg.sender, _tokenToWithdraw);
     }
     // 100$ WETH ~ 40$ EQU
 
 
-    function _withdrawCollateral(address _to, address _collateral, uint256 _amount) internal {
+    // we don't check the health factor after withdrawing in this function.
+    function _withdrawCollateral(address _from, address _to, address _collateral, uint256 _amount) internal {
         // we've already checked the amount in isAmountProper modifier.
-        MapUserCollateralDeposited[_to][_collateral] -= _amount;
+        if(_from == address(this)) {
+            MapUserCollateralDeposited[_to][_collateral] -= _amount;
+            emit CollateralWithdrew(_to, _collateral, _amount);
 
-        emit CollateralWithdrew(_to, _collateral, _amount);
+            bool success = IERC20(_collateral).transfer(_to, _amount);
+            if (!success) {
+                revert EquilibriumCore__transactionReverted(msg.sender);
+            }
 
-        // actual interaction before health factor examined.
-        bool success = IERC20(_collateral).transfer(_to, _amount);
-        if (!success) {
-            revert EquilibriumCore__transactionReverted(msg.sender);
+        } else {
+            // the collateral treasury is the EquilibriumCore contract, so the _from address consider as address(this).
+            // actual interaction before health factor examined.
+            bool success = IERC20(_collateral).transferFrom(_from, _to, _amount);
+            if (!success) {
+                revert EquilibriumCore__transactionReverted(msg.sender);
+            }
+            emit CollateralWithdrew(_to, _collateral, _amount);
         }
     }
-
-
-
-
 
 
     /*
      * @param _amount_to_liquidate is the amount which calculated off-chain to make Health Factor value above 1e18
     */
-    function liquidation(address _user, address _collateral, uint256 _amount_to_liquidate) 
+    function liquidation(address _user, address _collateral, uint256 _amount_to_liquidate_in_usd) 
     external 
     isEligibleUser(_user, _collateral)
-    NotZeroAmount(_amount_to_liquidate)
+    NotZeroAmount(_amount_to_liquidate_in_usd)
     nonReentrant
     {
         uint256 health_factor_ratio_before = get_health_factor(_user, _collateral);
         if (health_factor_ratio_before > HEALTH_FACTOR_THRESHOLD) revert EquilibriumCore__healthFactorIsNotViolated();
 
-        // let see how much _amount_to_liquidate is in USD for _collateral
-        uint256 liquidator_bonous = (_amount_to_liquidate * LIQUIDATOR_BONOUS) / LIQUIDATION_PRECISION;
-        uint256 collateral_amount_to_liquidate = _getCollateralAmountByUsdAmount(
-            _collateral, (_amount_to_liquidate + liquidator_bonous));
+        // let see how much _amount_to_liquidate_in_usd is in USD for _collateral
+        uint256 liquidator_bonous = (_amount_to_liquidate_in_usd * LIQUIDATOR_BONOUS) / LIQUIDATION_PRECISION;
+        uint256 collateral_amount_to_liquidate_in_usd = _getCollateralAmountByUsdAmount(
+            _collateral, (_amount_to_liquidate_in_usd + liquidator_bonous));
         
         // burn liquidator Equilibrium stablecoin
-        _burnEquilibrium(_user, msg.sender, _amount_to_liquidate);
+        _burnEquilibrium(_user, msg.sender, _amount_to_liquidate_in_usd);
 
         // paying back the collateral with 10% bonous
-        _withdrawCollateral(msg.sender, _collateral, collateral_amount_to_liquidate);
+        _withdrawCollateral(_user, msg.sender, _collateral, collateral_amount_to_liquidate_in_usd);
         
         uint256 health_factor_ratio_after = get_health_factor(_user, _collateral);
 
         if (health_factor_ratio_after <= health_factor_ratio_before) revert EquilibriumCore__healthFactorNotOptimized();
     }
-
-
-
-
-
 
 
 
@@ -261,6 +263,10 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         }
     }
 
+    /*
+     * @notice the _liquidator is a volunteer to burn his own Equilibrium stablecoin to get the collateral(+10%) as 
+        reward to make protocol health factor solvent. 
+    */
     function _burnEquilibrium(address _user, address _liquidator, uint256 _amount) internal {
         MapEquilibriumMinted[_user] -= _amount;
         
@@ -395,5 +401,10 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
     function get_EXTRA_PRECISION_FOR_PRICE_FEED() external pure returns (uint256) {
         return EXTRA_PRECISION_FOR_PRICE_FEED;
+    }
+
+    // tmp function, should be removed.
+    function get_contract_address() internal view returns(address) {
+        return address(this);
     }
 }
