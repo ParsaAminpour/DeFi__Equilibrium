@@ -291,4 +291,37 @@ contract EquilibriumCoreTest is Test {
     }
 
     // test unit for EquilibriumCore::liquidation (all pf aspects).
+    function testFailLiquidationUserIsNotEligible() public {
+        vm.startPrank(bob);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core), amount_to_deposit);
+
+        core.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+        vm.stopPrank();
+
+        address ineligible_user = makeAddr("ineligible_user");
+        uint256 amount_to_liquidate = 100e18; // 100$ for example
+        vm.prank(ineligible_user);
+        core.liquidation(ineligible_user, address(weth_mock), amount_to_liquidate);
+    }
+
+    function testFailLiquidationWhenHealthFactorIsOk() public {
+        vm.startPrank(bob);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core), amount_to_deposit);
+
+        core.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+        vm.stopPrank();
+
+        vm.startPrank(alice); // alice is liquidator here
+        uint256 amount_to_liquidate = 100e18; // 100$ for example
+        core.liquidation(bob, address(weth_mock), amount_to_liquidate);
+
+        vm.stopPrank();
+    }
+
 }

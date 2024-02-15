@@ -171,26 +171,26 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     /*
      * @param _amount_to_liquidate is the amount which calculated off-chain to make Health Factor value above 1e18
     */
-    function liquidation(address _user, address _collateral, uint256 _amount_to_liquidate)
-        external
-        isEligibleUser(_user, _collateral)
-        NotZeroAmount(_amount_to_liquidate)
-        nonReentrant
+    function liquidation(address _user, address _collateral, uint256 _amount_to_liquidate) 
+    external 
+    isEligibleUser(_user, _collateral)
+    NotZeroAmount(_amount_to_liquidate)
+    nonReentrant
     {
         uint256 health_factor_ratio_before = get_health_factor(_user, _collateral);
         if (health_factor_ratio_before > HEALTH_FACTOR_THRESHOLD) revert EquilibriumCore__healthFactorIsNotViolated();
 
         // let see how much _amount_to_liquidate is in USD for _collateral
         uint256 liquidator_bonous = (_amount_to_liquidate * LIQUIDATOR_BONOUS) / LIQUIDATION_PRECISION;
-        uint256 collateral_amount_to_liquidate =
-            _getCollateralAmountByUsdAmount(_collateral, (_amount_to_liquidate + liquidator_bonous));
-
+        uint256 collateral_amount_to_liquidate = _getCollateralAmountByUsdAmount(
+            _collateral, (_amount_to_liquidate + liquidator_bonous));
+        
         // burn liquidator Equilibrium stablecoin
         _burnEquilibrium(_user, msg.sender, _amount_to_liquidate);
 
         // paying back the collateral with 10% bonous
         withdrawCollateral(_collateral, collateral_amount_to_liquidate);
-
+        
         uint256 health_factor_ratio_after = get_health_factor(_user, _collateral);
 
         if (health_factor_ratio_after <= health_factor_ratio_before) revert EquilibriumCore__healthFactorNotOptimized();
@@ -198,7 +198,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
     function _burnEquilibrium(address _user, address _liquidator, uint256 _amount) internal {
         MapEquilibriumMinted[_user] -= _amount;
-
+        
         bool success = i_equ_token.transferFrom(_liquidator, address(this), _amount);
         if (!success) {
             revert EquilibriumCore__transactionReverted(_liquidator);
@@ -284,16 +284,13 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     }
 
     // @dev should consider PRECISION dividing in other calculations include this function's output.
-    function _getCollateralAmountByUsdAmount(address _collateral, uint256 _usd_amount_to_liquidate_in_wei)
-        internal
-        view
-        returns (uint256)
-    {
+    function _getCollateralAmountByUsdAmount(address _collateral, uint256 _usd_amount_to_liquidate_in_wei) internal view returns(uint256) {
         uint256 collateral_usd_price = _getUsdValue(_collateral, 1); // for example 2000e18
         return (_usd_amount_to_liquidate_in_wei * PRECISION) / (collateral_usd_price);
         // (100e18 * 1e18) / (2000 * 1e18)
     }
 
+    
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /           get functions             /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
