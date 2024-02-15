@@ -6,7 +6,7 @@ import {console} from "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Equilibrium} from "../src/Equilibrium.sol";
 import {EquilibriumCore} from "../src/EquilibriumCore.sol";
-import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+// import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {InstanceEquilibriumCore} from "../src/InstanceEquilibriumCore.sol";
 import {HelperConfig} from "../script/HelperConfig.s.sol";
 import {MockV3Aggregator} from "./mocks/MockV3Aggregator.sol";
@@ -15,6 +15,17 @@ import {ERC20Mock} from "./mocks/ERC20Mock.sol";
 // NOTE: These test units are only available and useable in local test networl / anvil network.
 
 contract EquilibriumCoreTest is Test {
+    // Errors are belong to the EquilibriumCore smart contract that we are testing it.
+    error EquilibriumCore__HealthFactorViolated(address violater, address collateral_asset, uint256 dangerous_hf);
+    error EquilibriumCore__transactionReverted(address from);
+    error EquilibriumCore__amountShouldNotBeZero();
+    error EquilibriumCore__UnsupportedToken();
+    error EquilibriumCore__AddressesInConstructorShouldNotBeSame();
+    error EquilibriumCore__ineligibleUser();
+    error EquilibriumCore_insufficientAmountToWithdrawCollateral(uint256 amountFailed);
+    error EquilibriumCore__healthFactorIsNotViolated();
+    error EquilibriumCore__healthFactorNotOptimized();
+
     address public bob; // The main role.
     address public alice;
     address public jack;
@@ -91,8 +102,15 @@ contract EquilibriumCoreTest is Test {
         assertEq(Equilibrium(equilibium_token_address).owner(), address(core));
     }
 
+
+
+
+
+
+
+
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
-    /     Internal & Private Function     /
+    /     Deposit Collateral Test Units   /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
     function testAddCollateral() public {
         //NOTE: bob Funded in setUp function
@@ -110,6 +128,26 @@ contract EquilibriumCoreTest is Test {
         assertEq(deposited_amount_in_contract, amount_to_deposit);
 
         uint256 real_equilibiurm_core_collateral_balance = weth_mock.balanceOf(address(core_instance));
+        assertEq(real_equilibiurm_core_collateral_balance, amount_to_deposit);
+        vm.stopPrank();
+    }
+
+    function testDepositCollateral() public {
+        //NOTE: bob Funded in setUp function
+        vm.startPrank(bob);
+        uint256 amount_to_deposit = 10 ether;
+        weth_mock.approve(address(core), amount_to_deposit);
+
+        // check event emitted
+        vm.expectEmit(true, true, true, true);
+        emit CollateralAdded(bob, address(weth_mock), amount_to_deposit);
+
+        core.depositCollateral(address(weth_mock), amount_to_deposit);
+
+        uint256 deposited_amount_in_contract = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
+        assertEq(deposited_amount_in_contract, amount_to_deposit);
+
+        uint256 real_equilibiurm_core_collateral_balance = weth_mock.balanceOf(address(core));
         assertEq(real_equilibiurm_core_collateral_balance, amount_to_deposit);
         vm.stopPrank();
     }
@@ -135,9 +173,9 @@ contract EquilibriumCoreTest is Test {
         vm.stopPrank();
     }
 
-    function testFailMintEquilibriumByZeroAmount() public {
+    function testRevertsMintEquilibriumByZeroAmount() public {
         vm.startPrank(bob);
-        // vm.expectRevert(core.EquilibriumCore__amountShouldNotBeZero.selector);
+        vm.expectRevert(EquilibriumCore__amountShouldNotBeZero.selector);
         core_instance.mintEquilibrium(bob, 0);
         vm.stopPrank();
     }
@@ -157,6 +195,16 @@ contract EquilibriumCoreTest is Test {
     // NOTE: should be a FUZZ test in here.
     function testCalculateEquilibriumAmountToMint() public {
         // internal calculation
+        uint256 collateral_amount_to_add_in_usd = core_instance.getUsdValue(
+            address(weth_mock), 10 ether);
+
+        uint256 liquidation_ratio = 25e17;
+        uint256 expected_answer = collateral_amount_to_add_in_usd / liquidation_ratio;
+        
+        uint256 real_answer = core_instance.calculateEquilibriumAmountToMint(
+            collateral_amount_to_add_in_usd);
+        
+            assertEq(expected_answer, real_answer);
         // For example we have 100$ of WETH as collateral
     }
 
@@ -194,29 +242,16 @@ contract EquilibriumCoreTest is Test {
         vm.stopPrank();
     }
 
-    /////////////////////////////////////////////////////////////////////////////////
-    // NOTE: should we write a fuzz test for this Health Factor functionality.
-    function testHealthFactor() public {
-        vm.startPrank(alice);
-        address token_to_deposit = address(weth_mock);
-        uint256 amount_to_deposit = 10e18;
 
-        weth_mock.approve(address(core_instance), amount_to_deposit);
 
-        core_instance.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
 
-        (uint256 total_minted, uint256 total_collateral_balance_in_usd) =
-            core_instance.getUserBalance(alice, address(weth_mock));
-        console.log("Total minted: ", total_minted / 1e18); // 8000
-        console.log("Total collateral: ", total_collateral_balance_in_usd / 1e18); // 20000
 
-        uint256 hf = core_instance.calculate_health_factor(total_minted, total_collateral_balance_in_usd);
-        console.log("Health factor is: ", hf);
 
-        assertLt(1e18, hf);
-        vm.stopPrank();
-    }
 
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /    Withdraw Collateral Test Units   /
+    *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+    // Tests that should be failed
     function testFailwithdrawCollateralIneligibleUser() public {
         address inenigible_user = makeAddr("Inenigible_user");
         vm.startPrank(inenigible_user);
@@ -240,8 +275,8 @@ contract EquilibriumCoreTest is Test {
     // function testFailwithdrawCollateralWhenHealthFactorViolated() public {
     // @bug we should manipulate the WETH price due to Mock price feeds which I don't know how
     // }
-
-    function testwithdrawCollateral() public {
+    // beforeEach for these series of test units.
+    modifier DepositCollateralInWETH() {
         vm.startPrank(bob);
         address token_to_deposit = address(weth_mock);
         uint256 amount_to_deposit = 10e18;
@@ -250,31 +285,173 @@ contract EquilibriumCoreTest is Test {
 
         core.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
         vm.stopPrank();
+        _;
+    }
+
+    // Tests that should not be failed.
+    function testwithdrawCollateral() public DepositCollateralInWETH() {
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
 
         uint256 hf = core.get_health_factor(bob, address(weth_mock));
-        if (hf > 1e18) {
-            console.log("It's ok");
-        } else {
-            console.log("It's not ok");
-        }
+        if (hf > 1e18) console.log("It's ok");
+        else console.log("It's not ok");
 
         vm.startPrank(bob);
-        uint256 balance_before = IERC20(weth_mock).balanceOf(bob);
+        uint256 balance_before = IERC20(weth_mock).balanceOf(bob); // should be init_balance - 10e18
+        console.log("balance before: ", balance_before/1e18); // init balance = 100 => result = 100e18 - 10e18 = 90e18
 
-        core.withdrawCollateral(address(weth_mock), amount_to_deposit);
+        // this amount won't break the health factor
+        // If you make it for example 10 ether, the last line _revertIfHealthFactorViolated will be triggered.
+        uint256 amount_to_withdraw = 1e18; 
+        
+        core.withdrawCollateral(token_to_deposit, amount_to_withdraw);
+        // uint256 hf2 = core.get_health_factor(bob, address(weth_mock));
+        // console.log("Hf after withdraw: ", hf2); // result = 100
 
         // checking state variable
-        uint256 expected_balance_in_state_variable = 0;
+        uint256 expected_balance_in_state_variable = amount_to_deposit - amount_to_withdraw;
         uint256 state_variable_balance = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
         assertEq(expected_balance_in_state_variable, state_variable_balance);
 
         // checking the balance from the token's own state variable
-        uint256 expect_balance_in_weth_token = balance_before + amount_to_deposit;
+        uint256 expect_balance_in_weth_token = balance_before + amount_to_withdraw;
         uint256 state_variable_balance_in_weth = IERC20(weth_mock).balanceOf(bob);
         assertEq(expect_balance_in_weth_token, state_variable_balance_in_weth);
 
         vm.stopPrank();
     }
+
+
+    // other FailTest due to modifiers are repeatitive and I won't write them again (because this is just a demo project NOT production).
+    // Just more care about the main functionality.
+    function testWithdrawCollateralWithBurnEquilibrium() public DepositCollateralInWETH() {
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_withdraw = 1e18;
+
+        uint256 hf = core.get_health_factor(bob, address(weth_mock));
+        if (hf > 1e18) console.log("It's ok");
+        else console.log("It's not ok");
+        
+        Equilibrium equilibrium_token = Equilibrium(core.getEquilibriumTokenAddress());
+        
+        uint256 equilibrium_balance_before_burning = equilibrium_token.balanceOf(bob);
+        uint256 collateral_balance_before_withdrawing = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
+
+        // Effects
+        vm.startPrank(bob);
+        uint256 collateralAmountInUsd = core_instance.getUsdValue(address(weth_mock), amount_to_withdraw);
+        uint256 equilibrium_equivalent_to_collateral_amount = core_instance.calculateEquilibriumAmountToMint(collateralAmountInUsd);
+
+        equilibrium_token.approve(address(core), equilibrium_equivalent_to_collateral_amount);
+        core.withdrawCollateralWithBurnEquilibrium(token_to_deposit, amount_to_withdraw);
+        vm.stopPrank();
+
+
+        /////// Let's check ///////
+        uint256 equilibrium_balance_after_burning = equilibrium_token.balanceOf(bob);
+        
+        console.log("The EQU balance before burn: ", equilibrium_balance_before_burning/1e18);
+        console.log("The EQU balance after burn: ", equilibrium_balance_after_burning/1e18);
+
+        // check the Equilibrium which has been burned
+        uint256 expected_equilibrium_balance_after_burn = equilibrium_balance_before_burning - equilibrium_equivalent_to_collateral_amount;
+        uint256 equilibrium_balance_after_burn = equilibrium_token.balanceOf(bob);
+        assertEq(expected_equilibrium_balance_after_burn, equilibrium_balance_after_burn);
+
+
+        // check that collateral withdrew
+        uint256 expected_collateral_balance_after_withdraw = collateral_balance_before_withdrawing - amount_to_withdraw;
+        uint256 actual_user_balance_after_withdraw = core.getUserCollateralDepositedAmount(bob, address(weth_mock));
+        assertEq(expected_collateral_balance_after_withdraw, actual_user_balance_after_withdraw);
+    }
+
+    function testFailWithdrawCollateralWhenHealthFactorViolated() public DepositCollateralInWETH() {
+        address token_to_deposit = address(weth_mock);
+        // The dangrous amount which make protocol Hf violate if we want to withdraw this amount.
+        uint256 amount_to_withdraw = 10e18;
+
+        uint256 hf = core.get_health_factor(bob, address(weth_mock));
+        if (hf > 1e18) console.log("It's ok");
+        else console.log("It's not ok");
+
+        Equilibrium equilibrium_token = Equilibrium(core.getEquilibriumTokenAddress());
+
+        // Effects
+        vm.startPrank(bob);
+        uint256 collateralAmountInUsd = core_instance.getUsdValue(address(weth_mock), amount_to_withdraw);
+        uint256 equilibrium_equivalent_to_collateral_amount = core_instance.calculateEquilibriumAmountToMint(collateralAmountInUsd);
+
+        equilibrium_token.approve(address(core), equilibrium_equivalent_to_collateral_amount);
+
+        // bytes4 SELECTOR = bytes4(keccak256("EquilibriumCore__HealthFactorViolated(address,address,uint256)"));
+        // vm.expectRevert(SELECTOR);
+        core.withdrawCollateral(token_to_deposit, amount_to_withdraw);
+        vm.stopPrank();
+    }
+
+
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /       Liquidation Test Units        /
+    *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // NOTE: should we write a fuzz test for this Health Factor functionality.
+    function testHealthFactor() public {
+        vm.startPrank(alice);
+        address token_to_deposit = address(weth_mock);
+        uint256 amount_to_deposit = 10e18;
+
+        weth_mock.approve(address(core_instance), amount_to_deposit);
+
+        core_instance.depositCollateralAndMintEquilibrium(token_to_deposit, amount_to_deposit);
+
+        (uint256 total_minted, uint256 total_collateral_balance_in_usd) =
+            core_instance.getUserBalance(alice, address(weth_mock));
+        console.log("Total minted: ", total_minted / 1e18); // 8000
+        console.log("Total collateral: ", total_collateral_balance_in_usd / 1e18); // 20000
+
+        uint256 hf = core_instance.calculate_health_factor(total_minted, total_collateral_balance_in_usd);
+        console.log("Health factor is: ", hf);
+
+        assertLt(1e18, hf);
+        vm.stopPrank();
+    }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     //////burn//////
     function testGetCollateralAmountByUsdAmount() public {
