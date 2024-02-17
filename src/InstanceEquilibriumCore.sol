@@ -45,6 +45,7 @@ contract InstanceEquilibriumCore is EquilibriumCore {
     function getUsdValue(address _collateralAddress, uint256 _amountOfCollateral)
         external
         view
+        override
         returns (uint256 usd_value)
     {
         usd_value = super._getUsdValue(_collateralAddress, _amountOfCollateral);

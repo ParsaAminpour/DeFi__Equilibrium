@@ -242,6 +242,13 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         if (health_factor_ratio_after <= health_factor_ratio_before) revert EquilibriumCore__healthFactorNotOptimized();
     }
 
+    function getUsdValue(address _collateral, uint256 _collateral_amount) external view virtual returns(uint256) {
+        return _getUsdValue(_collateral, _collateral_amount);
+    }
+
+
+
+
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /     Internal & Private Function     /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/

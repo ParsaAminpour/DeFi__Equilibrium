@@ -69,7 +69,7 @@ contract EquilibriumCoreTest is Test {
         core = new EquilibriumCore(address(weth_mock), address(wbtc_mock), address(weth_feed), address(wbtc_feed));
         core_instance =
             new InstanceEquilibriumCore(address(weth_mock), address(wbtc_mock), address(weth_feed), address(wbtc_feed));
-
+        
         bob = makeAddr("bob");
         alice = makeAddr("alice");
         jack = makeAddr("jack");
