@@ -54,6 +54,8 @@ contract InvariantInUse is StdInvariant, Test {
         _amount = bound(_amount, 1, MAX_AMOUNT_TO_DEPOSIT);
 
         vm.startPrank(bob);
+        collateral.mint(bob, _amount);
+        collateral.approve(address(core), _amount);
         core.depositCollateralAndMintEquilibrium(address(collateral), _amount);
         vm.stopPrank();
     }
