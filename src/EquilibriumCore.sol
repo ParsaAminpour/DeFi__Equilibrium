@@ -138,7 +138,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         // Coverting collateral to USD amount to calculate amountToMint variable.
         // for example: price(WETH) = 2000e18$ && count = 10e18WETH ==> 20000e36$
         uint256 collateralAmountInUsd = _getUsdValue(_tokenToDeposit, _amount);
-
+ 
         // calculate how much QUI should be minted.
         uint256 amountToMint = _calculateEquilibriumAmountToMint(collateralAmountInUsd);
 
