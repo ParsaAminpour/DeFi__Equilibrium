@@ -15,6 +15,8 @@ import {Equilibrium} from "./Equilibrium.sol";
  * @notice This contract is the core functionality of the Equilibrium algorithmic stable coin.
  * @notice Ownable contract functionality will use in operations which won't be broken the decentalization of the Equilibriu.
  * @notice this smart contract is loosely based on the DAI and MakerDAO smart contract.
+ * @dev the invariant of this smart contract is Health Factor which should not be less HEALTH_FACTOR_THRESHOLD, otherwise the invariant will be broken
+    and the contract will be useless in did.
 */
 contract EquilibriumCore is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -43,15 +45,16 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     uint256 private constant LIQUIDATION_PRECISION = 100; // For calculating Health Factor.
     uint256 private constant LIQUIDATOR_BONOUS = 10;
 
+    // Total Equilibrium StableCoint minted by the user
     mapping(address user => uint256 amount) private MapEquilibriumMinted;
-
+    // Total Collateral deposited by the user
     mapping(address user => mapping(address token => uint256 amount)) private MapUserCollateralDeposited;
-
+    // The Chainlink PriceFeed of a verified collateral
     mapping(address supportedToken => address supportedTokenPriceFeed) private MapSupportedTokenPriceFeed;
 
-    // supporting WETH and WBTC as low-volatility asserts in our collateral system.
+    // supporting WETH and WBTC as low-volatility assets in our collateral system.
     address[2] private tokenSupported;
-
+    // The Equilibrium StableCoin token
     Equilibrium private immutable i_equ_token;
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
@@ -138,7 +141,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         // Coverting collateral to USD amount to calculate amountToMint variable.
         // for example: price(WETH) = 2000e18$ && count = 10e18WETH ==> 20000e36$
         uint256 collateralAmountInUsd = _getUsdValue(_tokenToDeposit, _amount);
- 
+
         // calculate how much QUI should be minted.
         uint256 amountToMint = _calculateEquilibriumAmountToMint(collateralAmountInUsd);
 
@@ -151,6 +154,9 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
     /*
      * @dev this won't break the Health Factor but it will increate this factor too.
+     * @param _tokenToDeposit is the collateral address that msg.sender wants to add
+     * @param _amount is the amount of _tokenToDeposit collateral that msg.sender wants to deposit
+     * @notice because of increasing of numerator, the Health Factor could not be violated due to deposit collateral, whereas could be imporved.
     */
     function depositCollateral(address _tokenToDeposit, uint256 _amount)
         external
@@ -161,8 +167,13 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         _addCollateral(msg.sender, _tokenToDeposit, _amount);
     }
 
-    // Just when collateral owner wants to withdraw his own collateral.
-    // NOTE: this function is not proper for solving health factor chaos.
+    /* 
+     * NOTE: this function is not proper for solving health factor chaos.
+     * @notice Just when collateral owner wants to withdraw his own collateral.
+     * @param @param _tokenToWithdraw is the collateral address that msg.sender wants to withdraw.
+     * @param _amount is the amount of _tokenToWithdraw collateral that msg.sender wants to withdraw
+     * @returns at the end if health factor violated and comes under the HEALTH_FACTOR_THRESHOLD, the function will be reverted, and vise versa.
+    */
     function withdrawCollateral(address _tokenToWithdraw, uint256 _amount)
         external
         nonReentrant
@@ -175,6 +186,15 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         _revertIfHealthFactorViolated(msg.sender, _tokenToWithdraw);
     }
 
+    /*
+     * @param @param _tokenToWithdraw is the collateral address that msg.sender wants to withdraw.
+     * @param _amount is the amount of _tokenToWithdraw collateral that msg.sender wants to withdraw
+     * @dev this function is exist to make user able to burn his Equilibrium tokens besides 
+        withdrawing his collateral which is a roughly affect-less function on Health Factor ratio,
+        because both parameter are increaing which that artio is may constant.
+     * @returns withdrawing the user's collateral and burn his own Equilibrium asset, Just if the Health Factor won't be broken.
+        otherwise ths function will be reverted.
+    */
     function withdrawCollateralWithBurnEquilibrium(address _tokenToWithdraw, uint256 _amount)
         external
         nonReentrant
@@ -190,9 +210,14 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         _withdrawCollateral(address(this), msg.sender, _tokenToWithdraw, _amount);
         _revertIfHealthFactorViolated(msg.sender, _tokenToWithdraw);
     }
-    // 100$ WETH ~ 40$ EQU
 
-    // we don't check the health factor after withdrawing in this function.
+    /* 
+     * @notice we don't check the health factor after withdrawing in this function.
+     * @param _from the address that we want to withdraw collateral from, which is the owner of the collateral.
+     * @param _to the receiver address of the collateral
+     * @param _collateral the collateral address to withdraw.
+     * @param _amount the amount to withdraw.
+    */
     function _withdrawCollateral(address _from, address _to, address _collateral, uint256 _amount) internal {
         // we've already checked the amount in isAmountProper modifier.
         if (_from == address(this)) {
@@ -200,9 +225,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
             emit CollateralWithdrew(_to, _collateral, _amount);
 
             bool success = IERC20(_collateral).transfer(_to, _amount);
-            if (!success) {
-                revert EquilibriumCore__transactionReverted(msg.sender);
-            }
+            if (!success) revert EquilibriumCore__transactionReverted(msg.sender);
         } else {
             // the collateral treasury is the EquilibriumCore contract, so the _from address consider as address(this).
             // actual interaction before health factor examined.
@@ -215,6 +238,8 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     }
 
     /*
+     * @param _user the user that his own collateral treaury make the health factor violated.
+     * @param _collateral is the collateral address belongs to _user which make the health factor broken.
      * @param _amount_to_liquidate is the amount which calculated off-chain to make Health Factor value above 1e18
     */
     function liquidation(address _user, address _collateral, uint256 _amount_to_liquidate_in_usd)
@@ -242,12 +267,14 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         if (health_factor_ratio_after <= health_factor_ratio_before) revert EquilibriumCore__healthFactorNotOptimized();
     }
 
-    function getUsdValue(address _collateral, uint256 _collateral_amount) external view virtual returns(uint256) {
+    /*
+     * @param _collateral is the collateral address that you want to know his price based on the second parameter.
+     * @param _collateral_amount is amount of the collateral that you want to extract the whole value in USD.
+     * @returns collateral-value-in-usd * collateral-amount.
+    */
+    function getUsdValue(address _collateral, uint256 _collateral_amount) external view virtual returns (uint256) {
         return _getUsdValue(_collateral, _collateral_amount);
     }
-
-
-
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /     Internal & Private Function     /
@@ -400,6 +427,22 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
     function get_EXTRA_PRECISION_FOR_PRICE_FEED() external pure returns (uint256) {
         return EXTRA_PRECISION_FOR_PRICE_FEED;
+    }
+
+    function get_HEALTH_FACTOR_THRESHOLD() external pure returns(uint256) {
+        return HEALTH_FACTOR_THRESHOLD;
+    }
+
+    function get_LIQUIDATION_THRESHOLD() external pure returns(uint256) {
+        return LIQUIDATION_THRESHOLD;
+    }
+
+    function get_LIQUIDATION_PRECISION() external pure returns(uint256) {
+        return LIQUIDATION_PRECISION;
+    }
+
+    function get_LIQUIDATOR_BONOUS() external pure returns(uint256) {
+        return LIQUIDATOR_BONOUS;
     }
 
     // tmp function, should be removed.
