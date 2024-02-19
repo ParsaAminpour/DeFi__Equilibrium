@@ -218,7 +218,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @param _collateral the collateral address to withdraw.
      * @param _amount the amount to withdraw.
     */
-    function _withdrawCollateral(address _from, address _to, address _collateral, uint256 _amount) internal {
+    function _withdrawCollateral(address _from, address _to, address _collateral, uint256 _amount) internal nonReentrant {
         // we've already checked the amount in isAmountProper modifier.
         if (_from == address(this)) {
             MapUserCollateralDeposited[_to][_collateral] -= _amount;
@@ -244,9 +244,9 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     */
     function liquidation(address _user, address _collateral, uint256 _amount_to_liquidate_in_usd)
         external
+        nonReentrant
         isEligibleUser(_user, _collateral)
         NotZeroAmount(_amount_to_liquidate_in_usd)
-        nonReentrant
     {
         uint256 health_factor_ratio_before = get_health_factor(_user, _collateral);
         if (health_factor_ratio_before > HEALTH_FACTOR_THRESHOLD) revert EquilibriumCore__healthFactorIsNotViolated();
@@ -291,7 +291,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @notice the _liquidator is a volunteer to burn his own Equilibrium stablecoin to get the collateral(+10%) as 
         reward to make protocol health factor solvent. 
     */
-    function _burnEquilibrium(address _user, address _liquidator, uint256 _amount) internal {
+    function _burnEquilibrium(address _user, address _liquidator, uint256 _amount) internal nonReentrant {
         MapEquilibriumMinted[_user] -= _amount;
 
         bool success = i_equ_token.transferFrom(_liquidator, address(this), _amount);
