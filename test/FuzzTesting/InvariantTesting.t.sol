@@ -41,40 +41,40 @@ contract InvariantTesting is StdInvariant, Test {
 
     ERC20Mock public weth_mock;
     ERC20Mock public wbtc_mock;
-
+    
     MockV3Aggregator public weth_feed;
     MockV3Aggregator public wbtc_feed;
 
     function setUp() public {
         weth_mock = new ERC20Mock("WETH", "WETH", 1000e18);
         wbtc_mock = new ERC20Mock("WBTC", "WBTC", 1000e18);
-
+    
         weth_feed = new MockV3Aggregator(DECIMALS, INIT_ETH_USD_PRICE);
         wbtc_feed = new MockV3Aggregator(DECIMALS, INIT_BTC_USD_PRICE);
 
         core = new EquilibriumCore(address(weth_mock), address(wbtc_mock), address(weth_feed), address(wbtc_feed));
         core_token = Equilibrium(core.getEquilibriumTokenAddress());
 
-        handler = new InvariantInUse(address(core), address(core_token));
+        handler = new InvariantInUse(address(core), address(core_token));   
         targetContract(address(handler));
     }
 
     function invariant_totalcollateralDepositedShouldBeLessThanTotalEquilibriumMinted() public {
         vm.startPrank(bob);
         uint256 total_equ_minted = core_token.totalSupply();
-
+        
         uint256 total_weth_deposited = weth_mock.balanceOf(address(core));
         uint256 total_wbtc_deposited = wbtc_mock.balanceOf(address(core));
         console.log("total weth: ", total_weth_deposited);
         console.log("total wbtc: ", total_wbtc_deposited);
-
+        
         uint256 weth_deposited_in_usd = core.getUsdValue(address(weth_mock), total_weth_deposited);
         uint256 wbtc_deposited_in_usd = core.getUsdValue(address(wbtc_mock), total_wbtc_deposited);
 
         console.log("WETH balance: ", weth_deposited_in_usd);
         console.log("WBTC balance: ", wbtc_deposited_in_usd);
         console.log("EQU balance: ", total_equ_minted);
-
+        
         vm.stopPrank();
 
         assertGe(weth_deposited_in_usd + wbtc_deposited_in_usd, total_equ_minted);

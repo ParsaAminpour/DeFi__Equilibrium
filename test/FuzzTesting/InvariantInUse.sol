@@ -20,14 +20,14 @@ contract InvariantInUse is StdInvariant, Test {
     int256 public INIT_ETH_USD_PRICE = 2000e8;
     int256 public INIT_BTC_USD_PRICE = 5000e8;
 
-    uint256 public MAX_AMOUNT_TO_DEPOSIT = 1000000e18;
+    uint256 public MAX_AMOUNT_TO_DEPOSIT = 1000000E18;
 
     EquilibriumCore public core;
     Equilibrium public core_token;
 
     ERC20Mock public weth_mock;
     ERC20Mock public wbtc_mock;
-
+    
     MockV3Aggregator public weth_feed;
     MockV3Aggregator public wbtc_feed;
 
@@ -40,13 +40,13 @@ contract InvariantInUse is StdInvariant, Test {
 
         weth_mock = ERC20Mock(weth);
         wbtc_mock = ERC20Mock(wbtc);
-
+    
         weth_feed = MockV3Aggregator(wethFeed);
         wbtc_feed = MockV3Aggregator(wbtcFeed);
     }
 
-    function _getCollateral(uint256 idx) internal view returns (address) {
-        return (idx % 2 == 0 ? address(weth_mock) : address(wbtc_mock));
+    function _getCollateral(uint256 idx) internal view returns(address) {
+        return (idx%2==0 ? address(weth_mock) : address(wbtc_mock));
     }
 
     function depositCollateralAndMintEquilibrium(uint256 _collateral_idx, uint256 _amount) public {
