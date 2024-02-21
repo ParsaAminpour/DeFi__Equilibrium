@@ -198,21 +198,16 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
             MapUserCollateralDeposited[_to][_collateral] -= _amount;
             emit CollateralWithdrew(_to, _collateral, _amount);
 
-            bool success = IERC20(_collateral).transfer(_to, _amount);
-            if (!success) {
-                revert EquilibriumCore__transactionReverted(msg.sender);
-            }
+            IERC20(_collateral).safeTransfer(_to, _amount);
         } else {
             // the collateral treasury is the EquilibriumCore contract, so the _from address consider as address(this).
             // actual interaction before health factor examined.
-            bool success = IERC20(_collateral).transferFrom(_from, _to, _amount);
-            if (!success) {
-                revert EquilibriumCore__transactionReverted(msg.sender);
-            }
+            IERC20(_collateral).safeTransferFrom(_from, _to, _amount);
             emit CollateralWithdrew(_to, _collateral, _amount);
         }
     }
 
+    
     /*
      * @param _amount_to_liquidate is the amount which calculated off-chain to make Health Factor value above 1e18
     */
@@ -266,6 +261,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     function _burnEquilibrium(address _user, address _liquidator, uint256 _amount) internal {
         MapEquilibriumMinted[_user] -= _amount;
 
+        // We sure the `i_equ_token` works based on ERC20 archotecture and it's no the part of WeirdERC20 tokens at all.
         bool success = i_equ_token.transferFrom(_liquidator, address(this), _amount);
         if (!success) {
             revert EquilibriumCore__transactionReverted(_liquidator);
@@ -315,10 +311,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         MapUserCollateralDeposited[_from][_tokenToDeposit] += _amount;
         emit CollateralAdded(_from, _tokenToDeposit, _amount);
 
-        bool success = IERC20(_tokenToDeposit).transferFrom(_from, address(this), _amount);
-        if (!success) {
-            revert EquilibriumCore__transactionReverted(_from);
-        }
+        IERC20(_tokenToDeposit).safeTransferFrom(_from, address(this), _amount);
     }
 
     function _mintEquilibrium(address _owner, uint256 _amount) internal NotZeroAmount(_amount) {
