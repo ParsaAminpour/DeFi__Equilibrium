@@ -1,0 +1,30 @@
+On Sepolia Ethereum Network
+============================
+core address is:  0xf0c40760596e7f974b0707794277bf544dc1c24b                                                                                                    
+core token address is:  0x5e1cb4843efa5757064165c5bf50a7a2bced3eea                                                                                              
+                                                                                                                                                                  
+## Setting up 1 EVM.                                                                                                                                                                                                                                                                                               
+==========================                                                                                                                                                                                                                                                                                     
+Chain 11155111                                                                                                                                                    
+                                                                                                                                                                  
+Estimated gas price: 75.629036726 gwei                                                                                                                            
+                                                                                                                                                                  
+Estimated total gas used for script: 2473654                                                                                                                      
+                                                                                                                                                                  
+Estimated amount required: 0.187080069213416804 ETH
+
+
+On Scroll zkEVM network
+========================
+core address is:  0x26f76e57b14d591f8b6d0bb9b00c0c125b487d25
+core token address is:  0x952a224cf2eb5bbca43d014f88ad3c61f14f3746
+
+## Setting up 1 EVM.
+==========================
+Chain 534351
+
+Estimated gas price: 8.14 gwei
+
+Estimated total gas used for script: 2473654
+
+Estimated amount required: 0.02013554356 ETH

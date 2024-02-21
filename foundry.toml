@@ -6,7 +6,7 @@ libs = ["lib"]
 remappings = ['@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/', 
               '@openzeppelin/contracts=lib/openzeppelin-contracts/contracts']
 
-gas_reports = ["*"]
+gas_reports = ["EquilibriumCore"]
 # gas_reports_ignore = ["InstanceEquilibriumCore"]
 
 
@@ -22,6 +22,6 @@ runs = 128
 depth = 128
 fail_on_revert = true
 
-
+fs_permissions = [{ access = "read-write", path = "./deployed_addresses.txt"}]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
