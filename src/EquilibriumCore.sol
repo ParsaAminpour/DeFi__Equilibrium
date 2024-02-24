@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+// UUPS upgrade contract libraries
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol"; 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
 import {console} from "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
@@ -16,10 +22,10 @@ import {Equilibrium} from "./Equilibrium.sol";
  * @notice Ownable contract functionality will use in operations which won't be broken the decentalization of the Equilibriu.
  * @notice this smart contract is loosely based on the DAI and MakerDAO smart contract.
 */
-contract EquilibriumCore is Ownable, ReentrancyGuard {
+contract EquilibriumCore is Ownable, ReentrancyGuard, Initializable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
-    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*
     /               Errors                /
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
     error EquilibriumCore__HealthFactorViolated(address violater, address collateral_asset, uint256 dangerous_hf);
@@ -107,7 +113,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
      * @param weth_feed is the address of the Chainlink price feed for WETH.
      * @param wbtc_feed is the address of the Chainlink price feed for WBTC.
     */
-    constructor(address weth, address wbtc, address weth_feed, address wbtc_feed) Ownable(msg.sender) {
+    constructor(address weth, address wbtc, address weth_feed, address wbtc_feed) Ownable(msg.sender) initializer {
         if (weth == wbtc && weth_feed == wbtc_feed) {
             revert EquilibriumCore__AddressesInConstructorShouldNotBeSame();
         }
@@ -120,6 +126,8 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
 
         i_equ_token = new Equilibrium();
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override {}
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /         External Functions          /
@@ -355,6 +363,14 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
     function getSupportedTokenAddress() external view returns (address weth, address wbtc) {
         return (tokenSupported[0], tokenSupported[1]);
+    }
+
+    function get_weth_address() external view returns(address) {
+        return tokenSupported[0];
+    }
+
+    function get_wbtc_address() external view returns(address) {
+        return tokenSupported[1];
     }
 
     function getCollateralTokenSupportedPriceFeedAddresses()

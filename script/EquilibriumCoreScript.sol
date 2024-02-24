@@ -10,6 +10,7 @@ import {EquilibriumCore} from "../src/EquilibriumCore.sol";
 // import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {InstanceEquilibriumCore} from "../src/InstanceEquilibriumCore.sol";
+import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 
 contract EquilibriumCoreScript is Script {
     using Strings for string;
@@ -62,7 +63,7 @@ contract EquilibriumCoreScript is Script {
         console.log("core address is: ", toString(core_address));
         console.log("core token address is: ", toString(core_token_address));
 
-        string memory address_log_file_path = "./deployed_addresses.txt";
+        // string memory address_log_file_path = "./deployed_addresses.txt";
 
         // string[] memory commands = new string[](1);
         // commands[0] = "ls";

@@ -1,7 +1,7 @@
 On Sepolia Ethereum Network
 ============================
-core address is:  0xf0c40760596e7f974b0707794277bf544dc1c24b                                                                                                    
-core token address is:  0x5e1cb4843efa5757064165c5bf50a7a2bced3eea                                                                                              
+core address is:  0x6e1935a78a241abb66a36be16133ffb53c581de4                                                                                                    
+core token address is:  0xa95b58426c523f88b2037820f6027ef68874cfc9                                                                                              
                                                                                                                                                                   
 ## Setting up 1 EVM.                                                                                                                                                                                                                                                                                               
 ==========================                                                                                                                                                                                                                                                                                     
