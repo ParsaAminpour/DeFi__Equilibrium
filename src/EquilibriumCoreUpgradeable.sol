@@ -22,7 +22,7 @@ import {Equilibrium} from "./Equilibrium.sol";
  * @notice Ownable contract functionality will use in operations which won't be broken the decentalization of the Equilibriu.
  * @notice this smart contract is loosely based on the DAI and MakerDAO smart contract.
 */
-contract EquilibriumCore is Ownable, ReentrancyGuard, Initializable, UUPSUpgradeable {
+contract EquilibriumCoreUpgradeable is ReentrancyGuard, Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*
@@ -58,7 +58,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard, Initializable, UUPSUpgrade
     // supporting WETH and WBTC as low-volatility asserts in our collateral system.
     address[2] private tokenSupported;
 
-    Equilibrium private immutable i_equ_token;
+    Equilibrium private i_equ_token;
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /              Events                 /
@@ -107,32 +107,49 @@ contract EquilibriumCore is Ownable, ReentrancyGuard, Initializable, UUPSUpgrade
         _;
     }
 
+
+    /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
+    /         Upgrade Functions           /
+    *.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*/
+    function __EquilibriumCore_init_unchained(address _core_address) internal onlyInitializing { 
+        i_equ_token = new Equilibrium(_core_address);
+    }
+
+    function __EquilibriumCore_init(address _core_address) internal onlyInitializing {
+        __EquilibriumCore_init_unchained(_core_address);
+    }
+
     /*
      * @param weth is the address of the WETH ERC20 token.
      * @param wbtc is the address of the WBTC ERC20 token.
      * @param weth_feed is the address of the Chainlink price feed for WETH.
      * @param wbtc_feed is the address of the Chainlink price feed for WBTC.
     */
-    constructor(address weth, address wbtc, address weth_feed, address wbtc_feed) Ownable(msg.sender) {
+    // @audit if there was a delay in intialize calling after creatin this contract, it's vulnerable to fron-run. 
+    function initialize(address weth, address wbtc, address weth_feed, address wbtc_feed) external initializer {
         if (weth == wbtc && weth_feed == wbtc_feed) {
             revert EquilibriumCore__AddressesInConstructorShouldNotBeSame();
         }
 
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
+        __EquilibriumCore_init(address(this));
+        
         tokenSupported[0] = (weth);
         tokenSupported[1] = (wbtc);
 
         MapSupportedTokenPriceFeed[weth] = weth_feed;
         MapSupportedTokenPriceFeed[wbtc] = wbtc_feed;
-
-        i_equ_token = new Equilibrium();
     }
 
-    function initialize() public initializer {
-        // __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /         External Functions          /
@@ -418,5 +435,10 @@ contract EquilibriumCore is Ownable, ReentrancyGuard, Initializable, UUPSUpgrade
     // tmp function, should be removed.
     function get_contract_address() internal view returns (address) {
         return address(this);
+    }
+
+    // Just for upgrade-check purpose, the EquilibriumCoreV2 should have same function returns 2 instead.
+    function get_version() external pure returns(uint256) {
+        return 1;
     }
 }

@@ -118,7 +118,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
         MapSupportedTokenPriceFeed[weth] = weth_feed;
         MapSupportedTokenPriceFeed[wbtc] = wbtc_feed;
 
-        i_equ_token = new Equilibrium();
+        i_equ_token = new Equilibrium(address(this));
     }
 
     

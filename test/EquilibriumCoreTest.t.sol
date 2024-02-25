@@ -99,7 +99,7 @@ contract EquilibriumCoreTest is Test {
 
     function testEquilibriumTokenContractOwnership() public {
         address equilibium_token_address = core.getEquilibriumTokenAddress();
-        assertEq(Equilibrium(equilibium_token_address).owner(), address(core));
+        assertEq(Equilibrium(equilibium_token_address).get_core_address(), address(core));
     }
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    

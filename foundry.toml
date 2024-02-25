@@ -25,4 +25,7 @@ fail_on_revert = true
 
 fs_permissions = [{ access = "read-write", path = "./deployed_addresses.txt"}]
 
+# IMPORTANT: should be false in production.
+ffi = true
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
