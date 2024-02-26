@@ -16,7 +16,7 @@ The EquilibriumCore smart contract has a key invariant: the Health Factor (Hf) s
 <br />
 
 ## EquilibriumCore Architecture (Just Significant Functions)
-![EquilibriumCoreArchitecture](/EquilibriumCoreArchitecture.jpg 'Equilibrium Core Architecture Diagram')
+![EquilibriumCoreArchitecture](/EquilibriumCoreUpgradeableArchitecture.jpg 'Equilibrium Core Architecture Diagram')
 
 <br />
 
