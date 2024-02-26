@@ -52,7 +52,7 @@ contract EquilibriumCore is Ownable, ReentrancyGuard {
     // supporting WETH and WBTC as low-volatility asserts in our collateral system.
     address[2] private tokenSupported;
 
-    Equilibrium private immutable i_equ_token;
+    Equilibrium private i_equ_token;
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /              Events                 /
