@@ -37,6 +37,7 @@ contract EquilibriumCoreUpgradeable is ReentrancyGuard, Initializable, OwnableUp
     error EquilibriumCore_insufficientAmountToWithdrawCollateral(uint256 amountFailed);
     error EquilibriumCore__healthFactorIsNotViolated();
     error EquilibriumCore__healthFactorNotOptimized();
+    error EquilibriumCore__burnHasBeenFailed();
 
     /*.*.*.*.*.*.*.*.*.**.*.*.*.*.*.*.*.*.*    
     /           State Variables           /
@@ -298,7 +299,8 @@ contract EquilibriumCoreUpgradeable is ReentrancyGuard, Initializable, OwnableUp
         }
         emit EquilibriumBurned(_user, _amount);
 
-        i_equ_token.burn(address(this), _amount); // decrease total supply
+        bool burn_success = i_equ_token.burn(address(this), _amount); // decrease total supply
+        if (!burn_success) revert EquilibriumCore__burnHasBeenFailed();
     }
 
     function _getUserBalances(address _user, address _collateral) internal view returns (uint256, uint256) {
@@ -365,8 +367,9 @@ contract EquilibriumCoreUpgradeable is ReentrancyGuard, Initializable, OwnableUp
     // @audit should we analyze and examine the Chainlink Aggregator safety and data stale status.
     function _getUsdValue(address _collateralAddress, uint256 _amountOfCollateral) internal view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(MapSupportedTokenPriceFeed[_collateralAddress]);
+        //slither-disable-next-line
         (, int256 price,,,) = priceFeed.latestRoundData();
-        return (uint256(price) * EXTRA_PRECISION_FOR_PRICE_FEED) * _amountOfCollateral;
+        return (uint256(price) * EXTRA_PRECISION_FOR_PRICE_FEED) * _amountOfCollateral; 
     }
 
     // @dev should consider PRECISION dividing in other calculations include this function's output.
